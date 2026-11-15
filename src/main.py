@@ -6,7 +6,8 @@ from game_state import GameState
 from gmat_simulation import run_gmat_simulation, run_lunar_transfer_demo
 from load import load_game
 from save import save_before_simulation, save_game
-from screens import DifficultyScreen, InstrumentationScreen, ItemBudgetScreen, LaunchScreen, MainScreen, MenuScreen, RocketBuilderScreen, RocketConfigurationScreen, RoleSelectionScreen, RosterSelectionScreen, RoverIntroScreen, SpacecraftSetupScreen, TrajectoryScreen, mission_budget
+from screens import DifficultyScreen, InstrumentationScreen, LaunchScreen, MainScreen, MenuScreen, MissionChoiceScreen, RocketBuilderScreen, RocketConfigurationScreen, RoleSelectionScreen, RosterSelectionScreen, RoverIntroScreen, SpacecraftSetupScreen, StoryScreen, TrajectoryScreen
+from story import STORY_WINDOWS
 
 
 def main():
@@ -41,8 +42,6 @@ def main():
     for tier, count in (("cheap", 3), ("medium", 6), ("expensive", 9)):
         coin = pygame.image.load(f"../Assets/images/Coins_Gold_Shadow_{count}.png").convert_alpha()
         price_coins[tier] = pygame.transform.scale(coin, (48, 48))
-    money_coin = pygame.image.load("../Assets/images/Coins_Gold_Shadow_0.png").convert_alpha()
-    money_coin = pygame.transform.scale(money_coin, (32, 32))
     rocket_files = {
         "cheap": "../Assets/images/Pixel Art Rocket on Transparent Background-1.png",
         "medium": "../Assets/images/Retro Pixel Art Rocket Launch-2.png",
@@ -92,13 +91,19 @@ def main():
         "instrumentation": InstrumentationScreen(screen, workshop_bg, font_file, game_state),
         "spacecraft_setup": SpacecraftSetupScreen(screen, workshop_bg, font_file, game_state),
         "launch": LaunchScreen(screen, launch_bg, font_file, game_state),
-        "trajectory": TrajectoryScreen(screen, space_background, font_file),
+        "trajectory": TrajectoryScreen(screen, launch_bg, font_file),
+        "mission_choice": MissionChoiceScreen(screen, mission_control_bg, font_file),
     }
+    for name, (title, dialogue, back_screen, next_screen) in STORY_WINDOWS.items():
+        screens[name] = StoryScreen(
+            screen, mission_control_bg if name not in ("opening_call", "invite_team", "doubt", "who_team") else space_background,
+            font_file, title, dialogue, back_screen, next_screen,
+            compact=name in ("invite_team", "doubt", "who_team"),
+        )
     current_screen = "main"
     save_screens = ("rocket_builder", "rocket_configuration", "instrumentation", "spacecraft_setup", "launch")
     save_button = pygame.Rect(20, screen.get_height() - 60, 150, 45)
     save_label = pygame.font.Font(font_file, 28).render("Save", True, "white")
-    money_font = pygame.font.Font(font_file, 19)
     notice_font = pygame.font.Font(font_file, 18)
     save_notice = ""
 
@@ -159,12 +164,6 @@ def main():
 
         screens[current_screen].draw()
         if current_screen in save_screens and game_state.rocket is not None:
-            pygame.draw.rect(screen, "black", (730, 15, 210, 44))
-            money_label = money_font.render(
-                f"${mission_budget(game_state) - ItemBudgetScreen.mission_total_cost(game_state):,.0f}", True, "white"
-            )
-            screen.blit(money_label, (742, 27))
-            screen.blit(money_coin, (895, 21))
             screens[current_screen].draw_button(save_button, save_label)
             if save_notice:
                 notice = notice_font.render(save_notice, True, "white")
