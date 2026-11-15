@@ -1,0 +1,4 @@
+savegame.json
+gmat_config.json
+gmat_runs/*
+!gmat_runs/.gitkeep
