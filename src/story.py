@@ -54,9 +54,30 @@ STORY_WINDOWS = {
     "results_prompt": (
         "The results",
         (("Boss", "These results are very interesting. I'm not entirely sure what to make of them yet. Let's send this out to our team to get some answers."),),
-        "trajectory", "data_analysis",
+        "journal_5", "analysis_results",
     ),
-    "data_analysis": ("", (), "results_prompt", "final_dialogue"),
+    "analysis_success": (
+        "Analysis successful",
+        (("Boss", "The crew has interpreted enough of the mission data to identify a pattern. We can now discuss what it means for the Moon."),),
+        "analysis_results", "final_dialogue",
+    ),
+    "analysis_failure": (
+        "Analysis unsuccessful",
+        (("Boss", "The crew could not interpret enough of the mission data. Without a reliable analysis, we cannot determine what is damaging the Moon."),),
+        "analysis_results", "game_over",
+    ),
+    "game_over": (
+        "Game Over",
+        (
+            ("Boss", "These results don't look very good... I don't think the current team composition is the best idea."),
+            ("You", "I sincerely apologize. What can I improve?"),
+            ("Boss", "Well, our flyby didn't collect much data, and what data we did collect wasn't very helpful to finding out the reason for these craters. It's looking like we'll have to plan more than just one or two more missions for this. I must say, I am not very satisfied with the way this turned out."),
+            ("You", "But we simply don't have time for more than that. I don't even know what to do."),
+            ("Boss", "Well, better think of something quick! There's too much at work that we can't see."),
+            ("Scene", "You leave and head to your car, but before you can turn the key in the ignition, a bright light engulfs you. All that's left of half of Earth is a large, jagged crater. The other half melts as Earth's molten layers are exposed and the atmosphere is disrupted."),
+        ),
+        "analysis_failure", "game_over_final",
+    ),
     "final_dialogue": (
         "To the drawing board",
         (
@@ -66,6 +87,35 @@ STORY_WINDOWS = {
             ("You", "So there must be some sort of external factor causing this..."),
             ("Boss", "We will have to plan another mission before the Moon meets its end, leading to our demise. To the drawing board we go!"),
         ),
-        "data_analysis", "main",
+        "analysis_success", "to_be_continued",
     ),
 }
+
+
+JOURNAL_ENTRIES = (
+    (
+        "Dear Earth,",
+        "I believe I am doing the right thing here. But one day, the people may not look upon it too favorably. I hope that the decisions we make here save the world from a slow and terribly painful end.",
+        "",
+    ),
+    (
+        "Mission control,",
+        "If you saw what we were seeing, you'd be just as shocked. Our results should speak for themselves, but the impact craters are very deep and impossibly jagged, like something took a piece out of the moon, instead of an impact. I can only imagine what the reaction will be like.",
+        "Captain",
+    ),
+    (
+        "HII MISSION CONTROL!",
+        "I can't believe we are really seeing these huge things up in space ourselves! We were really chosen for this job? These craters are HUGE. No wonder there's such an effect back down on Earth!!!! I really hope we can figure out why these things are happening... I know we haven't been the kindest to Earth, but it is our home and we must do our best to protect it. See you again soon!!!",
+        "",
+    ),
+    (
+        "Control,",
+        "I see that we have been very successful with the first flyby. I wish to be a part of the next mission as well, since I find this very fascinating. My background as a medical doctor would greatly benefit the crew. Additionally, as I am trained in astrobiology, I find that the events happening on the lunar surface that are affecting the Earth are simply mind-boggling. I would like to continue my research in relation to these events and determine whether there is anything we can learn about these craters to solve these issues.",
+        "Much appreciated,",
+    ),
+    (
+        "Control,",
+        "I find it very concerning that our first mission is simply a flyby. Like my crewmate, I wish to be a part of future missions, as my research pertains to the specific impacts that look jagged. It has impacted the geography and terrain of the moon, leading to our current research being almost useless. These are unprecedented times, and I value humankind and its contributions. I'm updating my rock collection as we speak!",
+        "Signing off,\nThe Astronaut",
+    ),
+)

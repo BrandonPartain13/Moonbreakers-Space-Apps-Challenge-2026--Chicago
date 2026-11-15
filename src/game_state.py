@@ -10,8 +10,19 @@ class GameState:
     player_count: int | None = None
     players: list[Player] = field(default_factory=list)
     roster: list[str] = field(default_factory=list)
+    roster_locked: bool = False
     rocket: Rocket | None = None
     mission_customizations: dict = field(default_factory=dict)
+
+    def reset(self):
+        """Clear every selection while keeping screen references to this state valid."""
+        self.difficulty = None
+        self.player_count = None
+        self.players.clear()
+        self.roster.clear()
+        self.roster_locked = False
+        self.rocket = None
+        self.mission_customizations.clear()
 
     def set_player_count(self, count: int):
         if not 1 <= count <= 4:
@@ -28,6 +39,8 @@ class GameState:
         self.players[player_number - 1].role = role
 
     def toggle_roster_position(self, position: str):
+        if self.roster_locked:
+            return
         if position in self.roster:
             self.roster.remove(position)
         elif len(self.roster) < 4:

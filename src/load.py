@@ -126,6 +126,7 @@ def load_game(game_state, filename=SAVE_FILE):
         player.role = role
         player.customizations = customizations
     game_state.roster = roster
+    game_state.roster_locked = True
     game_state.rocket = ROCKET_TYPES[rocket_tier]()
     game_state.mission_customizations = mission_customizations
     return current_screen

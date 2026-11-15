@@ -6,6 +6,7 @@ except ImportError:
     Image = None
     ImageSequence = None
 from gmat_inputs import get_gmat_inputs
+from roster_analysis import roll_analysis
 from rocket import CheapRocket, MediumRocket, ExpensiveRocket
 from roles import load_roles
 
@@ -139,6 +140,95 @@ class StoryScreen(Screen):
         self.draw_button(self.next_button, self.next_label)
 
 
+class JournalScreen(Screen):
+    """A paginated letter shown between the flyby and crew analysis."""
+
+    def __init__(self, surface, background, font_file, number, entry, back_screen, next_screen):
+        super().__init__(surface, background, font_file)
+        self.back_screen = back_screen
+        self.next_screen = next_screen
+        self.page = 0
+        self.title = pygame.font.Font(font_file, 32).render(f"Journal entry {number}", True, (35, 42, 55))
+        self.font = pygame.font.Font(font_file, 21)
+        self.page_font = pygame.font.Font(font_file, 16)
+        button_font = pygame.font.Font(font_file, 27)
+        self.back_button = pygame.Rect(20, surface.get_height() - 65, 150, 45)
+        self.next_button = pygame.Rect(surface.get_width() - 170, surface.get_height() - 65, 150, 45)
+        self.back_label = button_font.render("Back", True, "white")
+        self.next_label = button_font.render("Next", True, "white")
+        self.pages = self._paginate(entry)
+
+    def _paginate(self, entry):
+        lines = []
+        for paragraph in (entry[0], entry[1], *entry[2].splitlines()):
+            line = ""
+            for word in paragraph.split():
+                candidate = (line + " " + word).strip()
+                if line and self.font.size(candidate)[0] > self.surface.get_width() - 215:
+                    lines.append(line)
+                    line = word
+                else:
+                    line = candidate
+            lines.extend((line, ""))
+        while lines and not lines[-1]:
+            lines.pop()
+        return [lines[index:index + 12] for index in range(0, len(lines), 12)]
+
+    def handle_event(self, event):
+        if event.type != pygame.MOUSEBUTTONDOWN or event.button != 1:
+            return None
+        if self.back_button.collidepoint(event.pos):
+            if self.page:
+                self.page -= 1
+                return None
+            return self.back_screen
+        if self.next_button.collidepoint(event.pos):
+            if self.page < len(self.pages) - 1:
+                self.page += 1
+                return None
+            self.page = 0
+            return self.next_screen
+        return None
+
+    def draw(self):
+        self.draw_background()
+        paper = pygame.Rect(65, 55, self.surface.get_width() - 130, 480)
+        pygame.draw.rect(self.surface, (235, 227, 204), paper)
+        pygame.draw.rect(self.surface, (95, 83, 65), paper, 3)
+        self.surface.blit(self.title, self.title.get_rect(center=(self.surface.get_width() // 2, 95)))
+        for index, line in enumerate(self.pages[self.page]):
+            if line:
+                self.surface.blit(self.font.render(line, True, (35, 42, 55)), (100, 145 + index * 27))
+        if len(self.pages) > 1:
+            count = self.page_font.render(f"{self.page + 1}/{len(self.pages)}", True, (35, 42, 55))
+            self.surface.blit(count, count.get_rect(center=(self.surface.get_width() // 2, 505)))
+        self.draw_button(self.back_button, self.back_label)
+        self.draw_button(self.next_button, self.next_label)
+
+
+class EndingScreen(Screen):
+    def __init__(self, surface, background, font_file, title):
+        super().__init__(surface, background, font_file)
+        title_size = 72 if title == "GAME OVER" else 52
+        self.title = pygame.font.Font(font_file, title_size).render(title, True, "white")
+        self.button = pygame.Rect(0, 0, 230, 60)
+        self.button.center = (surface.get_width() // 2, surface.get_height() // 2 + 125)
+        self.label = pygame.font.Font(font_file, 30).render("New Game", True, "white")
+
+    def handle_event(self, event):
+        if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1 and self.button.collidepoint(event.pos):
+            return "new_game"
+        return None
+
+    def draw(self):
+        self.draw_background()
+        shade = pygame.Surface(self.surface.get_size(), pygame.SRCALPHA)
+        shade.fill((0, 0, 0, 125))
+        self.surface.blit(shade, (0, 0))
+        self.surface.blit(self.title, self.title.get_rect(center=(self.surface.get_width() // 2, self.surface.get_height() // 2 - 50)))
+        self.draw_button(self.button, self.label)
+
+
 class MissionChoiceScreen(Screen):
     def __init__(self, surface, background, font_file):
         super().__init__(surface, background, font_file)
@@ -162,6 +252,61 @@ class MissionChoiceScreen(Screen):
         self.surface.blit(self.title, self.title.get_rect(center=(self.surface.get_width() // 2, 180)))
         self.draw_button(self.yes_button, self.yes_label)
         self.draw_button(self.no_button, self.no_label)
+
+
+class AnalysisResultsScreen(Screen):
+    """Show the roster's contribution before branching to the story outcome."""
+
+    def __init__(self, surface, background, font_file, game_state):
+        super().__init__(surface, background, font_file)
+        self.game_state = game_state
+        self.result = None
+        self.title = pygame.font.Font(font_file, 36).render("Mission data analysis", True, "white")
+        self.font = pygame.font.Font(font_file, 22)
+        self.detail_font = pygame.font.Font(font_file, 18)
+        button_font = pygame.font.Font(font_file, 28)
+        self.back_button = pygame.Rect(surface.get_width() // 2 - 170, surface.get_height() - 65, 150, 45)
+        self.next_button = pygame.Rect(surface.get_width() // 2 + 20, surface.get_height() - 65, 150, 45)
+        self.back_label = button_font.render("Back", True, "white")
+        self.next_label = button_font.render("Next", True, "white")
+
+    def reset(self):
+        self.result = None
+
+    def prepare(self):
+        if self.result is None and len(self.game_state.roster) == 4:
+            self.result = roll_analysis(self.game_state.roster)
+
+    def handle_event(self, event):
+        if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+            if self.back_button.collidepoint(event.pos):
+                return "results_prompt"
+            if self.next_button.collidepoint(event.pos) and len(self.game_state.roster) == 4:
+                self.prepare()
+                successful = self.result[3]
+                return "analysis_success" if successful else "analysis_failure"
+        return None
+
+    def draw(self):
+        self.prepare()
+        self.draw_background()
+        panel = pygame.Surface((920, 465), pygame.SRCALPHA)
+        panel.fill((0, 0, 0, 205))
+        self.surface.blit(panel, (54, 65))
+        self.surface.blit(self.title, self.title.get_rect(center=(self.surface.get_width() // 2, 105)))
+        observation = self.detail_font.render("The mission team is reviewing the flyby data.", True, "white")
+        self.surface.blit(observation, observation.get_rect(center=(self.surface.get_width() // 2, 150)))
+        for index, member in enumerate(self.game_state.roster):
+            name = self.font.render(member, True, "white")
+            y = 185 + index * 54
+            self.surface.blit(name, name.get_rect(center=(self.surface.get_width() // 2, y)))
+        if self.result is not None:
+            successful = self.result[3]
+            result = self.font.render("Successful analysis" if successful else "Analysis failed", True,
+                                      (125, 240, 155) if successful else (255, 130, 130))
+            self.surface.blit(result, result.get_rect(center=(self.surface.get_width() // 2, 450)))
+        self.draw_button(self.back_button, self.back_label)
+        self.draw_button(self.next_button, self.next_label)
 
 
 class MainScreen(Screen):
@@ -570,6 +715,7 @@ class RosterSelectionScreen(Screen):
             if self.back_button.collidepoint(event.pos):
                 return "who_team"
             if self.next_button.collidepoint(event.pos) and len(self.game_state.roster) == 4:
+                self.game_state.roster_locked = True
                 return "secure_location"
         return None
 
@@ -578,6 +724,10 @@ class RosterSelectionScreen(Screen):
         self.surface.blit(self.title, self.title_rect)
         count = self.count_font.render(f"Select 4 people: {len(self.game_state.roster)}/4", True, "white")
         self.surface.blit(count, count.get_rect(center=(self.surface.get_width() // 2, 69)))
+        note_text = ("Roster locked for this mission." if self.game_state.roster_locked
+                     else "Choose your roster carefully. You cannot change it later.")
+        note = self.count_font.render(note_text, True, "white")
+        self.surface.blit(note, note.get_rect(center=(self.surface.get_width() // 2, 96)))
         for position, rect, label in self.position_buttons:
             hovered = rect.collidepoint(pygame.mouse.get_pos())
             pygame.draw.rect(self.surface, (55, 55, 55) if hovered else "black", rect)
@@ -896,7 +1046,7 @@ class TrajectoryScreen(Screen):
             if self.back_button.collidepoint(event.pos):
                 return "launch"
             if self.next_button.collidepoint(event.pos) and self.result["status"] == "ready":
-                return "results_prompt"
+                return "journal_1"
         return None
 
     def draw(self):

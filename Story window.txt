@@ -1,0 +1,91 @@
+Story window:
+
+1. ROVER ON THE MOON WINDOW
+
+2. 
+[voice]: hello, is this [you]? 
+[you]: yes, who is this?
+[voice]: we understand that you are aware of the recent events involving the new impact craters on the moon, correct?
+[you]: yes ma’am, it’s my job to know about changes in our immediate astronomical vicinity. May I ask what this is about?
+[voice]: I have a job for you. An once in a lifetime opportunity and paid extremely well. Are you in?
+[you]: yes! I just have a few questions first...
+
+3.
+"Invite your Team invitation"
+
+4.
+- Player selection Window
+
+5.
+" What if I'm not cut out for the mission"
+
+6.
+- Difficult selection Window
+
+7.
+"Who's on my team"
+
+8.
+- Roster selection Window
+
+9.
+[voice]: the rest will have to be done in a secure location. Please be prepared to get your security classification changed. 
+
+10.
+[boss]: so, as you know, there have been a lot of odd things going on with our moon recently. Our meteorologists have noticed a lot of odd weather patterns and tidal patterns. We wanted to ask you to take a look at the impact craters that keep mysteriously appearing on the lunar surface. 
+
+11.
+[You:] Yes, I am quite aware! *Look at graphs, and monitor displaying recent changes in the lunar surface as observed by satellite. (small sparkle as an indicator) Notices in the graphs fluctuations in sea level and changes in the speed of tidal waves. * Ma’am, in my whole life, I have never seen or heard of such a phenomenon! *point to the graph* Right there, I see that there is a huge increase in the gravitational pull while the mass of the moon is decreasing! I have a theory that something is at play here which we cannot even begin to comprehend! 
+[boss]: exactly, our team is currently working on trying to decipher what this means for Earth and how it will affect current and future missions going to space. We want you to lead this team and save the Earth from the disastrous possibilities as a result of these issues. Do you accept this mission?
+
+12. 
+Yes or No option selection
+
+13.
+[boss]: here is a list of the things you will have to take care of as the leader of this mission. The mission is called Project Moonbreaker. We want you to handle designing the rocket, picking all of the instrumentation to go on the mission, and the team going on the mission. 
+
+14.
+- Rocket selection
+
+15.
+[boss]: interesting choice! Hopefully our mission can be carried out with this rocket. What about the instrumentation? What would you like to take on board with you? 
+
+16.
+- Instrumental Selection
+
+17.
+- Resource Selection
+
+18.
+[boss]: excellent! Your team looks great! Now, it's time to test out how the mission will proceed. 
+
+19.
+- Launch
+
+20.
+[boss]: these results are very interesting, i’m not entirely sure what to make of them yet. Let’s send this out to our team to get some answers. 
+
+21.
+	LEAVE IT EMPTY FOR NOW
+Data Analysis -> Team dependent
+Geologist +10
+Physicists +10
+Astrobiologist +15
+Signal Engineer + 0
+Astronaut + 10
+Doctor + 0
+Psychologist + 0
+Geneticist + 5
+Epidemiologist + 0
+Computer Scientist/Engineer + 5
+Linguist + 0
+Flight Director + 0
+Propulsion Engineer + 0
+
+
+22.
+[boss]: this means that there's something outside our view, something that we can’t see even from the ship we sent, that is causing this immense damage to the moon. 
+[you]: and we’re sure that it isn’t the insane amount of debris that we have floating in our atmosphere from all our satellites and previous missions? 
+[boss]: yes, we are sure that it is NOT from the satellite debris. 
+[you]: so there must be some sort of external factor causing this...
+[boss]: we will have to plan another mission before the moon meets its end, leading to our demise. To the drawing board we go!
