@@ -1,3 +1,0 @@
-# MOONBREAKERSA NASA SPACE APPS 2026 MISSION
-
-(c) 2026 Your Team NamePrototype v0.1.0
