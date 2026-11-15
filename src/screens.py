@@ -6,6 +6,7 @@ except ImportError:
     Image = None
     ImageSequence = None
 from gmat_inputs import get_gmat_inputs
+from roster_analysis import roll_analysis
 from rocket import CheapRocket, MediumRocket, ExpensiveRocket
 from roles import load_roles
 
@@ -30,6 +31,284 @@ class Screen:
         self.surface.blit(label, label.get_rect(center=rect.center))
 
 
+class StoryScreen(Screen):
+    """A story window with readable pages and Back/Next navigation."""
+
+    PLAYER_COLOR = (255, 220, 150)
+    NPC_COLOR = (115, 190, 255)
+
+    def __init__(self, surface, background, font_file, title, dialogue, back_screen, next_screen, compact=False):
+        super().__init__(surface, background, font_file)
+        self.back_screen = back_screen
+        self.next_screen = next_screen
+        self.page = 0
+        self.compact = compact
+        self.card = pygame.Rect(0, 0, 400, 400)
+        self.card.center = surface.get_rect().center
+        self.title_font = pygame.font.Font(font_file, 27 if compact else 32)
+        self.title = self.title_font.render(title, True, "white") if title and not compact else None
+        self.compact_title = self._wrap_title(title) if compact else []
+        self.font = pygame.font.Font(font_file, 20)
+        self.small_font = pygame.font.Font(font_file, 16)
+        self.button_font = pygame.font.Font(font_file, 27)
+        if compact:
+            self.back_button = pygame.Rect(self.card.left + 45, self.card.bottom - 70, 130, 45)
+            self.next_button = pygame.Rect(self.card.right - 175, self.card.bottom - 70, 130, 45)
+        else:
+            self.back_button = pygame.Rect(20, surface.get_height() - 65, 150, 45)
+            self.next_button = pygame.Rect(surface.get_width() - 170, surface.get_height() - 65, 150, 45)
+        self.back_label = self.button_font.render("Back", True, "white")
+        self.next_label = self.button_font.render("Next", True, "white")
+        self.pages = self._paginate(dialogue)
+
+    def _wrap_title(self, title):
+        lines = []
+        line = ""
+        for word in title.split():
+            candidate = (line + " " + word).strip()
+            if line and self.title_font.size(candidate)[0] > self.card.width - 70:
+                lines.append(self.title_font.render(line, True, "white"))
+                line = word
+            else:
+                line = candidate
+        if line:
+            lines.append(self.title_font.render(line, True, "white"))
+        return lines
+
+    def _paginate(self, dialogue):
+        lines = []
+        for speaker, paragraph in dialogue:
+            prefix = speaker + ": "
+            line = prefix
+            for word in paragraph.split():
+                candidate = (line + " " + word).strip()
+                if self.font.size(candidate)[0] > self.surface.get_width() - 130 and line != prefix:
+                    lines.append((line, speaker))
+                    line = word
+                else:
+                    line = candidate
+            lines.append((line, speaker))
+            lines.append(("", speaker))
+        while lines and not lines[-1][0]:
+            lines.pop()
+        return [lines[index:index + 13] for index in range(0, len(lines), 13)] or [[]]
+
+    def handle_event(self, event):
+        if event.type != pygame.MOUSEBUTTONDOWN or event.button != 1:
+            return None
+        if self.back_button.collidepoint(event.pos):
+            if self.page:
+                self.page -= 1
+                return None
+            return self.back_screen
+        if self.next_button.collidepoint(event.pos):
+            if self.page < len(self.pages) - 1:
+                self.page += 1
+                return None
+            self.page = 0
+            return self.next_screen
+        return None
+
+    def draw(self):
+        self.draw_background()
+        if self.compact:
+            panel = pygame.Surface(self.card.size, pygame.SRCALPHA)
+            panel.fill((0, 0, 0, 205))
+            self.surface.blit(panel, self.card.topleft)
+            pygame.draw.rect(self.surface, "white", self.card, 2)
+            title_top = self.card.top + 120 - (len(self.compact_title) - 1) * 18
+            for index, title_line in enumerate(self.compact_title):
+                self.surface.blit(title_line, title_line.get_rect(center=(self.card.centerx, title_top + index * 36)))
+            self.draw_button(self.back_button, self.back_label)
+            self.draw_button(self.next_button, self.next_label)
+            return
+        if self.title or self.pages[0]:
+            panel = pygame.Surface((self.surface.get_width() - 60, self.surface.get_height() - 155), pygame.SRCALPHA)
+            panel.fill((0, 0, 0, 190))
+            self.surface.blit(panel, (30, 55))
+        if self.title:
+            self.surface.blit(self.title, self.title.get_rect(center=(self.surface.get_width() // 2, 85)))
+        for index, (line, speaker) in enumerate(self.pages[self.page]):
+            if line:
+                color = self.PLAYER_COLOR if speaker == "You" else self.NPC_COLOR if speaker in ("Boss", "Voice") else "white"
+                image = self.font.render(line, True, color)
+                self.surface.blit(image, (65, 135 + index * 27))
+        if len(self.pages) > 1:
+            count = self.small_font.render(f"{self.page + 1}/{len(self.pages)}", True, "white")
+            self.surface.blit(count, count.get_rect(center=(self.surface.get_width() // 2, 505)))
+        self.draw_button(self.back_button, self.back_label)
+        self.draw_button(self.next_button, self.next_label)
+
+
+class JournalScreen(Screen):
+    """A paginated letter shown between the flyby and crew analysis."""
+
+    def __init__(self, surface, background, font_file, number, entry, back_screen, next_screen):
+        super().__init__(surface, background, font_file)
+        self.back_screen = back_screen
+        self.next_screen = next_screen
+        self.page = 0
+        self.title = pygame.font.Font(font_file, 32).render(f"Journal entry {number}", True, (35, 42, 55))
+        self.font = pygame.font.Font(font_file, 21)
+        self.page_font = pygame.font.Font(font_file, 16)
+        button_font = pygame.font.Font(font_file, 27)
+        self.back_button = pygame.Rect(20, surface.get_height() - 65, 150, 45)
+        self.next_button = pygame.Rect(surface.get_width() - 170, surface.get_height() - 65, 150, 45)
+        self.back_label = button_font.render("Back", True, "white")
+        self.next_label = button_font.render("Next", True, "white")
+        self.pages = self._paginate(entry)
+
+    def _paginate(self, entry):
+        lines = []
+        for paragraph in (entry[0], entry[1], *entry[2].splitlines()):
+            line = ""
+            for word in paragraph.split():
+                candidate = (line + " " + word).strip()
+                if line and self.font.size(candidate)[0] > self.surface.get_width() - 215:
+                    lines.append(line)
+                    line = word
+                else:
+                    line = candidate
+            lines.extend((line, ""))
+        while lines and not lines[-1]:
+            lines.pop()
+        return [lines[index:index + 12] for index in range(0, len(lines), 12)]
+
+    def handle_event(self, event):
+        if event.type != pygame.MOUSEBUTTONDOWN or event.button != 1:
+            return None
+        if self.back_button.collidepoint(event.pos):
+            if self.page:
+                self.page -= 1
+                return None
+            return self.back_screen
+        if self.next_button.collidepoint(event.pos):
+            if self.page < len(self.pages) - 1:
+                self.page += 1
+                return None
+            self.page = 0
+            return self.next_screen
+        return None
+
+    def draw(self):
+        self.draw_background()
+        paper = pygame.Rect(65, 55, self.surface.get_width() - 130, 480)
+        pygame.draw.rect(self.surface, (235, 227, 204), paper)
+        pygame.draw.rect(self.surface, (95, 83, 65), paper, 3)
+        self.surface.blit(self.title, self.title.get_rect(center=(self.surface.get_width() // 2, 95)))
+        for index, line in enumerate(self.pages[self.page]):
+            if line:
+                self.surface.blit(self.font.render(line, True, (35, 42, 55)), (100, 145 + index * 27))
+        if len(self.pages) > 1:
+            count = self.page_font.render(f"{self.page + 1}/{len(self.pages)}", True, (35, 42, 55))
+            self.surface.blit(count, count.get_rect(center=(self.surface.get_width() // 2, 505)))
+        self.draw_button(self.back_button, self.back_label)
+        self.draw_button(self.next_button, self.next_label)
+
+
+class EndingScreen(Screen):
+    def __init__(self, surface, background, font_file, title):
+        super().__init__(surface, background, font_file)
+        title_size = 72 if title == "GAME OVER" else 52
+        self.title = pygame.font.Font(font_file, title_size).render(title, True, "white")
+        self.button = pygame.Rect(0, 0, 230, 60)
+        self.button.center = (surface.get_width() // 2, surface.get_height() // 2 + 125)
+        self.label = pygame.font.Font(font_file, 30).render("New Game", True, "white")
+
+    def handle_event(self, event):
+        if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1 and self.button.collidepoint(event.pos):
+            return "new_game"
+        return None
+
+    def draw(self):
+        self.draw_background()
+        shade = pygame.Surface(self.surface.get_size(), pygame.SRCALPHA)
+        shade.fill((0, 0, 0, 125))
+        self.surface.blit(shade, (0, 0))
+        self.surface.blit(self.title, self.title.get_rect(center=(self.surface.get_width() // 2, self.surface.get_height() // 2 - 50)))
+        self.draw_button(self.button, self.label)
+
+
+class MissionChoiceScreen(Screen):
+    def __init__(self, surface, background, font_file):
+        super().__init__(surface, background, font_file)
+        self.title = pygame.font.Font(font_file, 36).render("Do you accept this mission?", True, "white")
+        self.yes_button = pygame.Rect(surface.get_width() // 2 - 180, 280, 150, 60)
+        self.no_button = pygame.Rect(surface.get_width() // 2 + 30, 280, 150, 60)
+        font = pygame.font.Font(font_file, 30)
+        self.yes_label = font.render("Yes", True, "white")
+        self.no_label = font.render("No", True, "white")
+
+    def handle_event(self, event):
+        if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+            if self.yes_button.collidepoint(event.pos):
+                return "mission_plan"
+            if self.no_button.collidepoint(event.pos):
+                return "main"
+        return None
+
+    def draw(self):
+        self.draw_background()
+        self.surface.blit(self.title, self.title.get_rect(center=(self.surface.get_width() // 2, 180)))
+        self.draw_button(self.yes_button, self.yes_label)
+        self.draw_button(self.no_button, self.no_label)
+
+
+class AnalysisResultsScreen(Screen):
+    """Show the roster's contribution before branching to the story outcome."""
+
+    def __init__(self, surface, background, font_file, game_state):
+        super().__init__(surface, background, font_file)
+        self.game_state = game_state
+        self.result = None
+        self.title = pygame.font.Font(font_file, 36).render("Mission data analysis", True, "white")
+        self.font = pygame.font.Font(font_file, 22)
+        self.detail_font = pygame.font.Font(font_file, 18)
+        button_font = pygame.font.Font(font_file, 28)
+        self.back_button = pygame.Rect(surface.get_width() // 2 - 170, surface.get_height() - 65, 150, 45)
+        self.next_button = pygame.Rect(surface.get_width() // 2 + 20, surface.get_height() - 65, 150, 45)
+        self.back_label = button_font.render("Back", True, "white")
+        self.next_label = button_font.render("Next", True, "white")
+
+    def reset(self):
+        self.result = None
+
+    def prepare(self):
+        if self.result is None and len(self.game_state.roster) == 4:
+            self.result = roll_analysis(self.game_state.roster)
+
+    def handle_event(self, event):
+        if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+            if self.back_button.collidepoint(event.pos):
+                return "results_prompt"
+            if self.next_button.collidepoint(event.pos) and len(self.game_state.roster) == 4:
+                self.prepare()
+                successful = self.result[3]
+                return "analysis_success" if successful else "analysis_failure"
+        return None
+
+    def draw(self):
+        self.prepare()
+        self.draw_background()
+        panel = pygame.Surface((920, 465), pygame.SRCALPHA)
+        panel.fill((0, 0, 0, 205))
+        self.surface.blit(panel, (54, 65))
+        self.surface.blit(self.title, self.title.get_rect(center=(self.surface.get_width() // 2, 105)))
+        observation = self.detail_font.render("The mission team is reviewing the flyby data.", True, "white")
+        self.surface.blit(observation, observation.get_rect(center=(self.surface.get_width() // 2, 150)))
+        for index, member in enumerate(self.game_state.roster):
+            name = self.font.render(member, True, "white")
+            y = 185 + index * 54
+            self.surface.blit(name, name.get_rect(center=(self.surface.get_width() // 2, y)))
+        if self.result is not None:
+            successful = self.result[3]
+            result = self.font.render("Successful analysis" if successful else "Analysis failed", True,
+                                      (125, 240, 155) if successful else (255, 130, 130))
+            self.surface.blit(result, result.get_rect(center=(self.surface.get_width() // 2, 450)))
+        self.draw_button(self.back_button, self.back_label)
+        self.draw_button(self.next_button, self.next_label)
+
+
 class MainScreen(Screen):
     def __init__(self, surface, background, font_file):
         super().__init__(surface, background, font_file)
@@ -49,7 +328,7 @@ class MainScreen(Screen):
     def handle_event(self, event):
         if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
             if self.button.collidepoint(event.pos):
-                return "difficulty"
+                return "rover_intro"
             if self.load_button.collidepoint(event.pos):
                 return "load_game"
         return None
@@ -89,9 +368,9 @@ class DifficultyScreen(Screen):
             for level, rect, _ in self.level_buttons:
                 if rect.collidepoint(event.pos):
                     self.game_state.difficulty = level
-                    return "menu"
+                    return "who_team"
             if self.back_button.collidepoint(event.pos):
-                return "main"
+                return "doubt"
         return None
 
     def draw(self):
@@ -131,9 +410,9 @@ class MenuScreen(Screen):
             for count, rect, _ in self.player_buttons:
                 if rect.collidepoint(event.pos):
                     self.game_state.set_player_count(count)
-                    return "rover_intro"
+                    return "roles"
             if self.button.collidepoint(event.pos):
-                return "difficulty"
+                return "invite_team"
         return None
 
     def draw(self):
@@ -247,7 +526,7 @@ class RoleSelectionScreen(Screen):
         if self.back_button.collidepoint(event.pos):
             return "menu"
         if self.start_button.collidepoint(event.pos) and self.ready_to_start():
-            return "roster"
+            return "doubt"
         return None
 
     def draw(self):
@@ -299,7 +578,7 @@ class RoleSelectionScreen(Screen):
 
 
 class RoverIntroScreen(Screen):
-    """Full-window animated scene between player count and role selection."""
+    """Full-window animated opening scene."""
 
     def __init__(self, surface, gif_path, font_file):
         super().__init__(surface, None, font_file)
@@ -330,9 +609,9 @@ class RoverIntroScreen(Screen):
     def handle_event(self, event):
         if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
             if self.back_button.collidepoint(event.pos):
-                return "menu"
+                return "main"
             if self.next_button.collidepoint(event.pos):
-                return "roles"
+                return "opening_call"
         return None
 
     def draw(self):
@@ -434,9 +713,10 @@ class RosterSelectionScreen(Screen):
                     self.game_state.toggle_roster_position(position)
                     return None
             if self.back_button.collidepoint(event.pos):
-                return "roles"
+                return "who_team"
             if self.next_button.collidepoint(event.pos) and len(self.game_state.roster) == 4:
-                return "rocket_builder"
+                self.game_state.roster_locked = True
+                return "secure_location"
         return None
 
     def draw(self):
@@ -444,6 +724,10 @@ class RosterSelectionScreen(Screen):
         self.surface.blit(self.title, self.title_rect)
         count = self.count_font.render(f"Select 4 people: {len(self.game_state.roster)}/4", True, "white")
         self.surface.blit(count, count.get_rect(center=(self.surface.get_width() // 2, 69)))
+        note_text = ("Roster locked for this mission." if self.game_state.roster_locked
+                     else "Choose your roster carefully. You cannot change it later.")
+        note = self.count_font.render(note_text, True, "white")
+        self.surface.blit(note, note.get_rect(center=(self.surface.get_width() // 2, 96)))
         for position, rect, label in self.position_buttons:
             hovered = rect.collidepoint(pygame.mouse.get_pos())
             pygame.draw.rect(self.surface, (55, 55, 55) if hovered else "black", rect)
@@ -481,7 +765,6 @@ INSTRUMENT_ITEMS = (
     ("Ka-Band Radar Altimeter", 3_000_000, "Measures lunar altitude and descent speed. Mass: 13.6 kg."),
     ("Deep-Space Transponder", 2_500_000, "Two-way high-frequency radio. Mass: 11.3 kg."),
     ("Radiation Dosimeter", 400_000, "Four dosimeters. Combined mass: 3.6 kg."),
-    ("Cabin Atmosphere Monitor", 0, "Monitors cabin air. Mass: 15.9 kg."),
 )
 ROCKET_PART_ITEMS = (
     ("Main Cryogenic Engines", 75_000_000, "Five engines. Combined mass: 8.16 t."),
@@ -497,7 +780,6 @@ INSTRUMENT_WEIGHTS_KG = {
     "Food": 0.0, "Infrared (Thermal) Camera": 5.4, "Star Trackers": 6.8,
     "Flash LIDAR System": 20.4, "Ka-Band Radar Altimeter": 13.6,
     "Deep-Space Transponder": 11.3, "Radiation Dosimeter": 3.6,
-    "Cabin Atmosphere Monitor": 15.9,
 }
 ROCKET_PART_WEIGHTS_KG = {
     "Main Cryogenic Engines": 8160, "Lunar Lander Descent Engine": 540,
@@ -635,7 +917,7 @@ class ItemBudgetScreen(Screen):
             price_label = self.price_item_font.render(price_text, True, (220, 220, 220))
             self.surface.blit(label, (row_rect.left + 9, row_rect.top + 3))
             self.surface.blit(price_label, (row_rect.left + 9, row_rect.top + 26))
-            quantity_text = f"{quantity} days" if name == "Food" else str(quantity)
+            quantity_text = str(quantity)
             quantity_label = self.small_font.render(quantity_text, True, "white")
             self.surface.blit(quantity_label, quantity_label.get_rect(center=(row_rect.left + 380, row_rect.centery)))
             for rect, symbol in ((minus_rect, "-"), (plus_rect, "+")):
@@ -647,17 +929,17 @@ class ItemBudgetScreen(Screen):
                 hovered_description = description
         if hovered_description:
             description_image = self.small_font.render(hovered_description, True, "white")
-            pygame.draw.rect(self.surface, "black", (30, 395, 900, 28))
-            self.surface.blit(description_image, (40, 400))
+            pygame.draw.rect(self.surface, "black", (30, 440, 900, 28))
+            self.surface.blit(description_image, (40, 445))
         self.draw_button(self.back_button, self.back_label)
         self.draw_button(self.next_button, self.next_label)
 
 
 class InstrumentationScreen(ItemBudgetScreen):
-    ITEM_LIST = INSTRUMENT_ITEMS
+    ITEM_LIST = tuple(item for item in INSTRUMENT_ITEMS if item[0] != "Food")
     STATE_KEY = "instruments"
-    TITLE = "Instruments and resources"
-    BACK_SCREEN = "rocket_configuration"
+    TITLE = "Instrument selection"
+    BACK_SCREEN = "instrument_prompt"
     NEXT_SCREEN = "spacecraft_setup"
 
 
@@ -681,7 +963,7 @@ class LaunchScreen(Screen):
     def handle_event(self, event):
         if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
             if self.back_button.collidepoint(event.pos):
-                return "spacecraft_setup"
+                return "test_prompt"
             if self.launch_button.collidepoint(event.pos):
                 if self.game_state.mission_customizations.get("simulation_mode") == "Demo":
                     return "run_demo"
@@ -751,14 +1033,20 @@ class TrajectoryScreen(Screen):
         self.result = {"status": "idle"}
         self.started_at = None
         self.back_button = pygame.Rect(0, 0, 150, 45)
-        self.back_button.centerx = surface.get_width() // 2
+        self.back_button.centerx = surface.get_width() // 2 - 90
         self.back_button.bottom = surface.get_rect().bottom - 15
         self.back_label = pygame.font.Font(font_file, 28).render("Back", True, "white")
+        self.next_button = pygame.Rect(0, 0, 150, 45)
+        self.next_button.centerx = surface.get_width() // 2 + 90
+        self.next_button.bottom = surface.get_rect().bottom - 15
+        self.next_label = pygame.font.Font(font_file, 28).render("Next", True, "white")
 
     def handle_event(self, event):
         if self.result["status"] != "running" and event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
             if self.back_button.collidepoint(event.pos):
                 return "launch"
+            if self.next_button.collidepoint(event.pos) and self.result["status"] == "ready":
+                return "journal_1"
         return None
 
     def draw(self):
@@ -849,6 +1137,7 @@ class TrajectoryScreen(Screen):
         )
         self.surface.blit(detail, detail.get_rect(center=(self.surface.get_width() // 2, 445)))
         self.draw_button(self.back_button, self.back_label)
+        self.draw_button(self.next_button, self.next_label)
 
 
 class RocketBuilderScreen(Screen):
@@ -886,7 +1175,7 @@ class RocketBuilderScreen(Screen):
                     self.game_state.rocket = rocket_type()
                     return None
             if self.back_button.collidepoint(event.pos):
-                return "roster"
+                return "mission_plan"
             if self.next_button.collidepoint(event.pos) and self.game_state.rocket is not None:
                 return "rocket_configuration"
         return None
@@ -919,13 +1208,13 @@ class RocketConfigurationScreen(ItemBudgetScreen):
     STATE_KEY = "rocket_parts"
     TITLE = "Rocket Configuration"
     BACK_SCREEN = "rocket_builder"
-    NEXT_SCREEN = "instrumentation"
+    NEXT_SCREEN = "instrument_prompt"
     ROW_START_Y = 140
 
     def __init__(self, surface, background, font_file, game_state):
         super().__init__(surface, background, font_file, game_state)
         self.propellant_font = pygame.font.Font(font_file, 17)
-        self.propellant_button = pygame.Rect(30, 98, 290, 36)
+        self.propellant_button = pygame.Rect(30, 98, 390, 36)
         self.propellant_open = False
         self.propellant_option_rects = []
 
@@ -994,10 +1283,7 @@ class SpacecraftSetupScreen(Screen):
         super().__init__(surface, background, font_file)
         self.game_state = game_state
         self.active_field = None
-        self.simulation_mode = "Player spacecraft"
-        self.mode_rect = pygame.Rect(720, 20, 205, 38)
-        self.mode_options = []
-        self.title = pygame.font.Font(font_file, 34).render("Spacecraft configuration", True, "white")
+        self.title = pygame.font.Font(font_file, 34).render("Resource selection and spacecraft setup", True, "white")
         self.title_rect = self.title.get_rect(center=(surface.get_width() // 2, 55))
         self.label_font = pygame.font.Font(font_file, 19)
         self.value_font = pygame.font.Font(font_file, 22)
@@ -1005,6 +1291,8 @@ class SpacecraftSetupScreen(Screen):
         self.fields = []
         self.option_rects = []
         self.option_font = pygame.font.Font(font_file, 20)
+        self.food_minus = pygame.Rect(720, 490, 35, 35)
+        self.food_plus = pygame.Rect(820, 490, 35, 35)
         for index, (key, label, description) in enumerate(self.INPUTS):
             column = index // 4
             row = index % 4
@@ -1053,15 +1341,16 @@ class SpacecraftSetupScreen(Screen):
 
     def handle_event(self, event):
         if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
-            if self.active_field == "simulation_mode":
-                for value, option_rect in zip(("Player spacecraft", "Demo"), self.mode_options):
-                    if option_rect.collidepoint(event.pos):
-                        self.game_state.mission_customizations["simulation_mode"] = value
-                        self.active_field = None
-                        return None
-                self.active_field = None
-            if self.mode_rect.collidepoint(event.pos):
-                self.active_field = "simulation_mode"
+            instruments = self.game_state.mission_customizations.setdefault("instruments", {})
+            if isinstance(instruments, list):
+                instruments = {name: 1 for name in instruments}
+                self.game_state.mission_customizations["instruments"] = instruments
+            food_days = int(instruments.get("Food", 0))
+            if self.food_minus.collidepoint(event.pos):
+                instruments["Food"] = max(0, food_days - 1)
+                return None
+            if self.food_plus.collidepoint(event.pos):
+                instruments["Food"] = food_days + 1
                 return None
             if self.active_field is not None:
                 for option_index, option_rect in enumerate(self.option_rects):
@@ -1074,7 +1363,7 @@ class SpacecraftSetupScreen(Screen):
             if self.back_button.collidepoint(event.pos):
                 return "instrumentation"
             if self.next_button.collidepoint(event.pos):
-                return "launch"
+                return "test_prompt"
             self.active_field = None
             for index, (_, _, _, field_rect, _) in enumerate(self.fields):
                 if field_rect.collidepoint(event.pos):
@@ -1086,11 +1375,6 @@ class SpacecraftSetupScreen(Screen):
         self.draw_background()
         pygame.draw.rect(self.surface, "black", (20, 95, 920, 300))
         self.surface.blit(self.title, self.title_rect)
-        mode = self.game_state.mission_customizations.get("simulation_mode", "Player spacecraft")
-        pygame.draw.rect(self.surface, "black", self.mode_rect)
-        pygame.draw.rect(self.surface, "white", self.mode_rect, 2)
-        mode_label = self.help_font.render("Mode: " + mode, True, "white")
-        self.surface.blit(mode_label, mode_label.get_rect(center=self.mode_rect.center))
         values = self.values()
         if self.game_state.rocket is not None:
             dry_mass = ItemBudgetScreen.current_dry_mass_kg(self.game_state)
@@ -1115,6 +1399,14 @@ class SpacecraftSetupScreen(Screen):
         pygame.draw.rect(self.surface, "white", (30, 405, 900, 57), 2)
         help_image = self.help_font.render(hovered_description, True, "white")
         self.surface.blit(help_image, (45, 423))
+        instruments = self.game_state.mission_customizations.get("instruments", {})
+        food_days = instruments.get("Food", 0) if isinstance(instruments, dict) else int("Food" in instruments)
+        food_label = self.label_font.render(f"Food: {food_days} days (${next(price for name, price, _ in INSTRUMENT_ITEMS if name == 'Food'):,.0f} per kg)", True, "white")
+        self.surface.blit(food_label, (40, 500))
+        for rect, symbol in ((self.food_minus, "-"), (self.food_plus, "+")):
+            pygame.draw.rect(self.surface, "black", rect)
+            pygame.draw.rect(self.surface, "white", rect, 1)
+            self.surface.blit(self.value_font.render(symbol, True, "white"), (rect.left + 10, rect.top + 4))
         self.draw_button(self.back_button, self.back_label)
         self.draw_button(self.next_button, self.next_label)
         self.option_rects = []
@@ -1132,16 +1424,7 @@ class SpacecraftSetupScreen(Screen):
                 pygame.draw.rect(self.surface, (55, 55, 55) if option_rect.collidepoint(mouse_position) else "black", option_rect)
                 option_image = self.option_font.render(option, True, "white")
                 self.surface.blit(option_image, option_image.get_rect(center=option_rect.center))
-        self.mode_options = []
-        if self.active_field == "simulation_mode":
-            for index, value in enumerate(("Player spacecraft", "Demo")):
-                option_rect = pygame.Rect(self.mode_rect.left, self.mode_rect.bottom + index * 30, self.mode_rect.width, 30)
-                self.mode_options.append(option_rect)
-                pygame.draw.rect(self.surface, "black", option_rect)
-                pygame.draw.rect(self.surface, "white", option_rect, 1)
-                option_image = self.help_font.render(value, True, "white")
-                self.surface.blit(option_image, option_image.get_rect(center=option_rect.center))
         validation_message = self.validation_message()
         if validation_message:
             message = self.help_font.render(validation_message[:95], True, (255, 210, 120))
-            self.surface.blit(message, message.get_rect(center=(self.surface.get_width() // 2, 480)))
+            self.surface.blit(message, message.get_rect(center=(self.surface.get_width() // 2, 470)))

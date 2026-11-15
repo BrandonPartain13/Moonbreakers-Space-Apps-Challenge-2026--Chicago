@@ -97,6 +97,13 @@ def load_game(game_state, filename=SAVE_FILE):
             raise ValueError("Invalid instruments in save file")
     else:
         raise ValueError("Invalid instruments in save file")
+    # Keep old saves loadable, but drop this option now that it is retired.
+    if isinstance(instruments, dict):
+        instruments.pop("Cabin Atmosphere Monitor", None)
+    else:
+        mission_customizations["instruments"] = [
+            name for name in instruments if name != "Cabin Atmosphere Monitor"
+        ]
     rocket_parts = mission_customizations.get("rocket_parts", {})
     known_parts = {"Main Cryogenic Engines", "Lunar Lander Descent Engine", "RCS Thruster Pod",
                    "Cryogenic Propellant Tanks", "Thermal Protection Heat Shield",
@@ -119,6 +126,7 @@ def load_game(game_state, filename=SAVE_FILE):
         player.role = role
         player.customizations = customizations
     game_state.roster = roster
+    game_state.roster_locked = True
     game_state.rocket = ROCKET_TYPES[rocket_tier]()
     game_state.mission_customizations = mission_customizations
     return current_screen
