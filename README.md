@@ -42,9 +42,9 @@ An interactive menu allowing players to begin a new mission, select their player
 
 Players will be able to choose between three difficulty levels:
 
-- **Easy:** A more accessible introduction to mission design.
-- **Medium:** A balanced experience with additional planning challenges.
-- **Hard:** A more demanding experience emphasizing engineering constraints and strategic decision-making.
+- **Clear skies:** A more accessible introduction to mission design.
+- **First Ascent:** A balanced experience with additional planning challenges.
+- **No mercy:** A more demanding experience emphasizing engineering constraints and strategic decision-making.
 
 ### 3. Spacecraft and Mission Asset Creation
 
@@ -68,7 +68,7 @@ Text-based screens and interactive buttons will guide players through mission st
 
 ### 7. Save and Load System
 
-A planned feature allowing players to save their progress and return to their mission later.
+Players can save the current mission setup after choosing a rocket tier and load it from the main screen. The system will expand as more mission choices are added.
 
 ## 🔬 Scientific and Engineering Concepts
 
@@ -137,23 +137,13 @@ python -m pip install pygame
 
 *Note: Moonbreakers is under development. Installation and execution instructions may change as the project evolves.*
 
-## 📋 Development Roadmap
+### Current demo flow
 
-The following features are currently planned:
+The game flows from Main (Start or Load) through Difficulty, player count, player roles, roster, rocket price tier, Rocket Configuration, Instruments and Resources, Spacecraft Configuration, and Launch. Rocket Configuration and Instruments and Resources are currently placeholder screens with Back and Next buttons. On the spacecraft configuration screen, click a field to enter a value and hover over its label or input for a short explanation. The current form uses identical tanks and identical thrusters, with one fuel amount and thrust value per unit; a burn angle of 0 means forward along the orbit. Launch saves the mission, calls GMAT through its Python API, and displays the returned trajectory or an error.
 
-- [ ] Create README documentation
-- [ ] Develop main menu GUI
-- [ ] Implement player selection
-- [ ] Create difficulty selection window
-- [ ] Develop mission asset creation interface
-- [ ] Implement rocket customization
-- [ ] Add scientific instrument selection
-- [ ] Create mission personnel roster
-- [ ] Implement orbital selection
-- [ ] Develop rocket launch sequence
-- [ ] Add save and load functionality
-- [ ] Create interactive mission progression screens
-- [ ] Test and refine gameplay
+After choosing a rocket tier, **Save** is available on that screen and every following screen. It writes the current setup and screen to `savegame.json` in the game's working directory. **Load** on the main screen restores both. The save includes difficulty, players and roles, roster, rocket tier, and the player and mission customization fields. The coin images show relative price tiers; money and numeric prices are still to be defined.
+
+Spacecraft configuration entries are included in Save, even before the form is complete. Launch requires complete inputs and a successful save before the GMAT simulation starts. The trajectory display has an Earth view and a Moon close-up, both using XY projections of GMAT coordinates. The Moon close-up shows the spacecraft only when its three-dimensional distance is within 50,000 km; a chosen burn does not necessarily produce a lunar encounter.
 
 ## 👥 Team Collaboration
 
