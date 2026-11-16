@@ -1,0 +1,41 @@
+Name: Flight Director (Flight)
+Description: Leads the team.
+
+Name: Booster Officer (Booster)
+Description: Monitors the booster performance.
+
+Name: Command and Data Handling Officer (C&DH)
+Description: Monitors the avionics and computer systems.
+
+Name: Control Officer (Control)
+Description: Manages guidance and control of the solid rocket boosters, core stage, and ICPS engine from liftoff through the TLI burn.
+
+Name: Emergency, Environmental, and Consumables Officer (EECOM)
+Description: Monitors environmental control and life support systems and emergency procedures.
+
+Name: Flight Activities Officer (FAO)
+Description: Coordinates the flight plan.
+
+Name: Flight Dynamics Officer (FDO)
+Description: Monitors trajectories during all phases of the mission.
+
+Name: Flight Operations Directorate (FOD)
+Description: Relays information between the flight control team and relevant managers and leaders within NASA.
+
+Name: Ground Control Officer (GC)
+Description: Is responsible for the operation of all mission control systems.
+
+Name: Guidance, Navigation, and Control (GNC)
+Description: Operates navigation and flight control software during the mission.
+
+Name: Integrated Communications Officer (INCO)
+Description: Monitors all of Orion’s communications systems.
+
+Name: Mechanical and Power Officer (MPO)
+Description: Is responsible for electrical, mechanical, structural, and landing and recovery systems.
+
+Name: Propulsion Officer (PROP)
+Description: Is responsible for the propulsion systems.
+
+Name: Public Affairs Officer (PAO)
+Description: Provides mission commentary to the public and news media.
